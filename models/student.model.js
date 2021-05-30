@@ -1,4 +1,4 @@
-const connection = require('./db');
+const pool = require('./db');
 
 // Constructor
 function Student(student) {
@@ -10,53 +10,88 @@ function Student(student) {
 }
 
 Student.getAll = (callback) => {
-    connection.query('SELECT * FROM Students', (err, results) => {
+    pool.getConnection((err, connection) => {
         if (err) {
+            console.log(err);
             callback(err, null);
             return;
         }
-        callback(null, results);
+        console.log('connected as id ' + connection.threadId);
+        connection.query('SELECT * FROM Students', (err, results) => {
+            connection.release(); // always put connection back in pool after last query
+            if (err) {
+                callback(err, null);
+                return;
+            }
+            callback(null, results);
+        })
     })
 };
 
 Student.updateById = (id, student, callback) => {
-    const sql = `UPDATE Students SET StudentName = COALESCE(?, StudentName), MobileNumber = COALESCE(?, MobileNumber), 
-    Email = COALESCE(?, Email), StudentYear = COALESCE(?, StudentYear), Course = COALESCE(?, Course) WHERE StudentID = ?`;
-    connection.query(sql, [student.StudentName, student.MobileNumber, student.Email, student.StudentYear, student.Course, id], (err, results) => {
+    pool.getConnection((err, connection) => {
         if (err) {
+            console.log(err);
             callback(err, null);
             return;
         }
-        if (results.affectedRows <= 0) {
-            callback({ errorMessage: 'not found' }, null);
-            return;
-        }
-        callback(null, results);
+        console.log('connected as id ' + connection.threadId);
+        const sql = `UPDATE Students SET StudentName = COALESCE(?, StudentName), MobileNumber = COALESCE(?, MobileNumber), 
+        Email = COALESCE(?, Email), StudentYear = COALESCE(?, StudentYear), Course = COALESCE(?, Course) WHERE StudentID = ?`;
+        connection.query(sql, [student.StudentName, student.MobileNumber, student.Email, student.StudentYear, student.Course, id], (err, results) => {
+            connection.release(); // always put connection back in pool after last query
+            if (err) {
+                callback(err, null);
+                return;
+            }
+            if (results.affectedRows <= 0) {
+                callback({ errorMessage: 'not found' }, null);
+                return;
+            }
+            callback(null, results);
+        })
     })
-}
+};
 
 Student.deleteById = (id, callback) => {
-    connection.query('DELETE FROM Students WHERE StudentID = ?', id, (err, results) => {
+    pool.getConnection((err, connection) => {
         if (err) {
+            console.log(err);
             callback(err, null);
             return;
         }
-        if (results.affectedRows <= 0) {
-            callback({ errorMessage: 'not found' }, null);
-            return;
-        }
-        callback(null, results);
+        console.log('connected as id ' + connection.threadId);
+        connection.query('DELETE FROM Students WHERE StudentID = ?', id, (err, results) => {
+            connection.release(); // always put connection back in pool after last query
+            if (err) {
+                callback(err, null);
+                return;
+            }
+            if (results.affectedRows <= 0) {
+                callback({ errorMessage: 'not found' }, null);
+                return;
+            }
+            callback(null, results);
+        })
     })
-}
+};
 
 Student.create = (student, callback) => {
-    connection.query('INSERT INTO Students SET ?', student, (err, results) => {
+    pool.getConnection((err, connection) => {
         if (err) {
+            console.log(err);
             callback(err, null);
             return;
         }
-        callback(null, results);
+        connection.query('INSERT INTO Students SET ?', student, (err, results) => {
+            connection.release(); // always put connection back in pool after last query
+            if (err) {
+                callback(err, null);
+                return;
+            }
+            callback(null, results);
+        })
     })
-}
+};
 
 module.exports = Student;
